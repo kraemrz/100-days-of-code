@@ -12,4 +12,5 @@ Cheers!
 
 Day2: December 17, 2017
 Second day of my challenge I turned to kivy in python and tried to understand by makeing the game pong.
-Im halfway throu and will be continue later today...
+Im halfway throu and will be continue later today..
+Finished of my pong game, so now its playable. next step in this project is make a winner text "PLAYER# IS THE WINNER" and some graphical colors!
