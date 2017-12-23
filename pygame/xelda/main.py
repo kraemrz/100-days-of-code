@@ -11,6 +11,25 @@ from sprites import *
 from tilemap import *
 
 
+# HUD functions
+def draw_player_health(surf, x, y, pct):
+    if pct < 0:
+        pct = 0
+    BAR_LENGHT = 100
+    BAR_HEIGHT = 20
+    fill = pct * BAR_LENGHT
+    outline_rect = pg.Rect(x, y, BAR_LENGHT, BAR_HEIGHT)
+    fill_rect = pg.Rect(x, y, fill, BAR_HEIGHT)
+    if pct > 0.6:
+        col = GREEN
+    elif pct > 0.3:
+        col = YELLOW
+    else:
+        col = RED
+    pg.draw.rect(surf, col, fill_rect)
+    pg.draw.rect(surf, BLACK, outline_rect, 2)
+
+
 class Game:
     def __init__(self):
         pg.init()
@@ -25,16 +44,24 @@ class Game:
         img_folder = path.join(game_folder, 'img')
         self.map = Map(path.join(game_folder, 'map.txt'))
         self.player_img = pg.image.load(path.join(img_folder, PLAYER_IMG)).convert_alpha()
+        self.NPC_img = pg.image.load(path.join(img_folder, NPC_IMG)).convert_alpha()
+        self.bullet_img = pg.image.load(path.join(img_folder, BULLET_IMG)).convert_alpha()
+        self.wall_img = pg.image.load(path.join(img_folder, WALL_IMG)).convert_alpha()
+        self.wall_img = pg.transform.scale(self.wall_img, (TILESIZE, TILESIZE))
 
     def new(self):
         # initialize all variables and do all the setup for a new game
         self.all_sprites = pg.sprite.Group()
         self.walls = pg.sprite.Group()
+        self.bullets = pg.sprite.Group()
+        self.NPC = pg.sprite.Group()
 
         for row, tiles in enumerate(self.map.data):
             for col, tile in enumerate(tiles):
                 if tile == '1':
                     Wall(self, col, row)
+                if tile == 'M':
+                    NPC(self, col, row)
                 if tile == 'P':
                     self.player = Player(self, col, row)
         self.camera = Camera(self.map.width, self.map.height)
@@ -56,6 +83,22 @@ class Game:
         # update portion of the game loop
         self.all_sprites.update()
         self.camera.update(self.player)
+        # NPC hits the player
+        hits = pg.sprite.spritecollide(self.player, self.NPC, False, collide_hit_rect)
+        for hit in hits:
+            self.player.health -= NPC_DMG
+            hit.vel = vec(0, 0)
+            if self.player.health <= 0:
+                self.playing = False
+
+            if hits:
+                self.player.pos += vec(NPC_KNOCKBACK, 0).rotate(-hits[0].rot)
+
+        # bullets hit NPC
+        hits = pg.sprite.groupcollide(self.NPC, self.bullets, False, True)
+        for hit in hits:
+            hit.health -= BULLET_DMG
+            hit_vel = vec(0, 0)
 
     def draw_grid(self):
         for x in range(0, WIDTH, TILESIZE):
@@ -64,11 +107,15 @@ class Game:
             pg.draw.line(self.screen, LIGHTGREY, (0, y), (WIDTH, y))
 
     def draw(self):
+        pg.display.set_caption("{:.2f}".format(self.clock.get_fps()))
         self.screen.fill(BGCOLOR)
-        self.draw_grid()
+        # self.draw_grid()
         # self.all_sprites.draw(self.screen)
         for sprite in self.all_sprites:
+            if isinstance(sprite, NPC):
+                sprite.draw_health()
             self.screen.blit(sprite.image, self.camera.apply(sprite))
+        draw_player_health(self.screen, 10, 10, self.player.health / PLAYER_HEALTH)
         pg.display.flip()
 
     def events(self):
